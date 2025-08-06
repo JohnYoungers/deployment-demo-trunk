@@ -37,14 +37,30 @@ jobs:
           path: app/
           retention-days: 30
 
+
   deploy-dev:
-    name: Deploy to Development
+    name: Deploy to Development (${{ matrix.region }} - ${{ matrix.aws_region }})
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'dev'
+    strategy:
+      matrix:
+        include:
+          - region: US East 1
+            aws_region: us-east-1
+            url: https://dev-us-east-1.example.com
+            bucket: dev-us-east-1-bucket
+          - region: EU Central 1
+            aws_region: eu-central-1
+            url: https://dev-eu-central-1.example.com
+            bucket: dev-eu-central-1-bucket
+          - region: AP Southeast 1
+            aws_region: ap-southeast-1
+            url: https://dev-ap-southeast-1.example.com
+            bucket: dev-ap-southeast-1-bucket
     environment:
       name: dev
-      url: https://dev.example.com
+      url: ${{ matrix.url }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -52,32 +68,51 @@ jobs:
           name: ${{ needs.build.outputs.artifact-name }}
           path: dist/
 
-      - name: Deploy to Development
+      - name: Deploy to Development (${{ matrix.region }})
+        env:
+          AWS_REGION: ${{ matrix.aws_region }}
         run: |
-          echo "🚀 Deploying to Development environment..."
+          echo "🚀 Deploying to Development environment (${{ matrix.region }})..."
           echo "Environment: dev"
+          echo "Region: ${{ matrix.aws_region }}"
           echo "Artifact: ${{ needs.build.outputs.artifact-name }}"
           echo "SHA: ${{ github.sha }}"
           # Add your deployment commands here
-          # Example: aws s3 sync dist/ s3://dev-bucket/
-          sleep 5
-          echo "✅ Development deployment completed!"
-
-      - name: Run smoke tests
-        run: |
-          echo "🧪 Running smoke tests on dev environment..."
-          # Add your smoke test commands here
+          # Example: aws s3 sync dist/ s3://${{ matrix.bucket }}/ --region ${{ matrix.aws_region }}
           sleep 3
-          echo "✅ Smoke tests passed!"
+          echo "✅ Development deployment to ${{ matrix.region }} completed!"
+
+      - name: Run smoke tests (${{ matrix.region }})
+        run: |
+          echo "🧪 Running smoke tests on dev environment (${{ matrix.region }})..."
+          # Add your smoke test commands here
+          sleep 2
+          echo "✅ Smoke tests passed in ${{ matrix.region }}!"
+
 
   deploy-rc:
-    name: Deploy to Release Candidate
+    name: Deploy to Release Candidate (${{ matrix.region }} - ${{ matrix.aws_region }})
     runs-on: ubuntu-latest
     needs: [build, deploy-dev]
     if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'rc'
+    strategy:
+      matrix:
+        include:
+          - region: US East 1
+            aws_region: us-east-1
+            url: https://rc-us-east-1.example.com
+            bucket: rc-us-east-1-bucket
+          - region: EU Central 1
+            aws_region: eu-central-1
+            url: https://rc-eu-central-1.example.com
+            bucket: rc-eu-central-1-bucket
+          - region: AP Southeast 1
+            aws_region: ap-southeast-1
+            url: https://rc-ap-southeast-1.example.com
+            bucket: rc-ap-southeast-1-bucket
     environment:
       name: rc
-      url: https://rc.example.com
+      url: ${{ matrix.url }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -85,32 +120,51 @@ jobs:
           name: ${{ needs.build.outputs.artifact-name }}
           path: dist/
 
-      - name: Deploy to Release Candidate
+      - name: Deploy to Release Candidate (${{ matrix.region }})
+        env:
+          AWS_REGION: ${{ matrix.aws_region }}
         run: |
-          echo "🚀 Deploying to Release Candidate environment..."
+          echo "🚀 Deploying to Release Candidate environment (${{ matrix.region }})..."
           echo "Environment: rc"
+          echo "Region: ${{ matrix.aws_region }}"
           echo "Artifact: ${{ needs.build.outputs.artifact-name }}"
           echo "SHA: ${{ github.sha }}"
           # Add your deployment commands here
-          # Example: aws s3 sync dist/ s3://rc-bucket/
-          sleep 5
-          echo "✅ RC deployment completed!"
+          # Example: aws s3 sync dist/ s3://${{ matrix.bucket }}/ --region ${{ matrix.aws_region }}
+          sleep 3
+          echo "✅ RC deployment to ${{ matrix.region }} completed!"
 
-      - name: Run integration tests
+      - name: Run integration tests (${{ matrix.region }})
         run: |
-          echo "🧪 Running integration tests on RC environment..."
+          echo "🧪 Running integration tests on RC environment (${{ matrix.region }})..."
           # Add your integration test commands here
-          sleep 5
-          echo "✅ Integration tests passed!"
+          sleep 3
+          echo "✅ Integration tests passed in ${{ matrix.region }}!"
+
 
   deploy-stage:
-    name: Deploy to Staging
+    name: Deploy to Staging (${{ matrix.region }} - ${{ matrix.aws_region }})
     runs-on: ubuntu-latest
-    needs: [build, deploy-dev, deploy-rc]
+    needs: [build, deploy-rc]
     if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'stage'
+    strategy:
+      matrix:
+        include:
+          - region: US East 1
+            aws_region: us-east-1
+            url: https://stage-us-east-1.example.com
+            bucket: stage-us-east-1-bucket
+          - region: EU Central 1
+            aws_region: eu-central-1
+            url: https://stage-eu-central-1.example.com
+            bucket: stage-eu-central-1-bucket
+          - region: AP Southeast 1
+            aws_region: ap-southeast-1
+            url: https://stage-ap-southeast-1.example.com
+            bucket: stage-ap-southeast-1-bucket
     environment:
       name: stage
-      url: https://stage.example.com
+      url: ${{ matrix.url }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -118,37 +172,60 @@ jobs:
           name: ${{ needs.build.outputs.artifact-name }}
           path: dist/
 
-      - name: Deploy to Staging
+      - name: Deploy to Staging (${{ matrix.region }})
+        env:
+          AWS_REGION: ${{ matrix.aws_region }}
         run: |
-          echo "🚀 Deploying to Staging environment..."
+          echo "🚀 Deploying to Staging environment (${{ matrix.region }})..."
           echo "Environment: stage"
+          echo "Region: ${{ matrix.aws_region }}"
           echo "Artifact: ${{ needs.build.outputs.artifact-name }}"
           echo "SHA: ${{ github.sha }}"
           # Add your deployment commands here
-          # Example: aws s3 sync dist/ s3://stage-bucket/
-          sleep 5
-          echo "✅ Staging deployment completed!"
+          # Example: aws s3 sync dist/ s3://${{ matrix.bucket }}/ --region ${{ matrix.aws_region }}
+          sleep 4
+          echo "✅ Staging deployment to ${{ matrix.region }} completed!"
 
-      - name: Run end-to-end tests
+      - name: Run end-to-end tests (${{ matrix.region }})
         run: |
-          echo "🧪 Running end-to-end tests on staging environment..."
+          echo "🧪 Running end-to-end tests on staging environment (${{ matrix.region }})..."
           # Add your E2E test commands here
-          sleep 7
-          echo "✅ End-to-end tests passed!"
+          sleep 4
+          echo "✅ End-to-end tests passed in ${{ matrix.region }}!"
 
       - name: Notify stakeholders
+        if: ${{ matrix.region == 'AP Southeast 1' }}
         run: |
           echo "📧 Notifying stakeholders about staging deployment..."
-          echo "Staging environment is ready for review at https://stage.example.com"
+          echo "Staging environments are ready for review:"
+          echo "- US East 1: https://stage-us-east-1.example.com"
+          echo "- EU Central 1: https://stage-eu-central-1.example.com"
+          echo "- AP Southeast 1: https://stage-ap-southeast-1.example.com"
+
 
   deploy-prod:
-    name: Deploy to Production
+    name: Deploy to Production (${{ matrix.region }} - ${{ matrix.aws_region }})
     runs-on: ubuntu-latest
     needs: [build, deploy-stage]
     if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
+    strategy:
+      matrix:
+        include:
+          - region: US East 1
+            aws_region: us-east-1
+            url: https://us-east-1.example.com
+            bucket: prod-us-east-1-bucket
+          - region: EU Central 1
+            aws_region: eu-central-1
+            url: https://eu-central-1.example.com
+            bucket: prod-eu-central-1-bucket
+          - region: AP Southeast 1
+            aws_region: ap-southeast-1
+            url: https://ap-southeast-1.example.com
+            bucket: prod-ap-southeast-1-bucket
     environment:
       name: prod
-      url: https://example.com
+      url: ${{ matrix.url }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -156,26 +233,33 @@ jobs:
           name: ${{ needs.build.outputs.artifact-name }}
           path: dist/
 
-      - name: Deploy to Production
+      - name: Deploy to Production (${{ matrix.region }})
+        env:
+          AWS_REGION: ${{ matrix.aws_region }}
         run: |
-          echo "🚀 Deploying to Production environment..."
+          echo "🚀 Deploying to Production environment (${{ matrix.region }})..."
           echo "Environment: prod"
+          echo "Region: ${{ matrix.aws_region }}"
           echo "Artifact: ${{ needs.build.outputs.artifact-name }}"
           echo "SHA: ${{ github.sha }}"
           # Add your deployment commands here
-          # Example: aws s3 sync dist/ s3://prod-bucket/
-          sleep 8
-          echo "✅ Production deployment completed!"
+          # Example: aws s3 sync dist/ s3://${{ matrix.bucket }}/ --region ${{ matrix.aws_region }}
+          sleep 5
+          echo "✅ Production deployment to ${{ matrix.region }} completed!"
 
-      - name: Verify production deployment
+      - name: Verify production deployment (${{ matrix.region }})
         run: |
-          echo "🔍 Verifying production deployment..."
+          echo "🔍 Verifying production deployment (${{ matrix.region }})..."
           # Add your verification commands here
-          sleep 3
-          echo "✅ Production verification completed!"
+          sleep 2
+          echo "✅ Production verification completed in ${{ matrix.region }}!"
 
       - name: Send success notification
+        if: ${{ matrix.region == 'AP Southeast 1' }}
         run: |
-          echo "🎉 Production deployment successful!"
-          echo "Application is live at https://example.com"
+          echo "🎉 Production deployment successful across all regions!"
+          echo "Applications are live at:"
+          echo "- US East 1: https://us-east-1.example.com"
+          echo "- EU Central 1: https://eu-central-1.example.com"
+          echo "- AP Southeast 1: https://ap-southeast-1.example.com"
           echo "Version: ${{ github.sha }}"
