@@ -1,1 +1,0 @@
-# deployment-demo-trunk

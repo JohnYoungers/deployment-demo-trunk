@@ -1,0 +1,181 @@
+name: Deploy to Environments
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment for manual deployment'
+        required: false
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - rc
+        - stage
+        - prod
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create artifact name
+        id: artifact
+        run: echo "name=build-${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: app/
+          retention-days: 30
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'dev'
+    environment:
+      name: dev
+      url: https://dev.example.com
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: dist/
+
+      - name: Deploy to Development
+        run: |
+          echo "🚀 Deploying to Development environment..."
+          echo "Environment: dev"
+          echo "Artifact: ${{ needs.build.outputs.artifact-name }}"
+          echo "SHA: ${{ github.sha }}"
+          # Add your deployment commands here
+          # Example: aws s3 sync dist/ s3://dev-bucket/
+          sleep 5
+          echo "✅ Development deployment completed!"
+
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests on dev environment..."
+          # Add your smoke test commands here
+          sleep 3
+          echo "✅ Smoke tests passed!"
+
+  deploy-rc:
+    name: Deploy to Release Candidate
+    runs-on: ubuntu-latest
+    needs: [build, deploy-dev]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'rc'
+    environment:
+      name: rc
+      url: https://rc.example.com
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: dist/
+
+      - name: Deploy to Release Candidate
+        run: |
+          echo "🚀 Deploying to Release Candidate environment..."
+          echo "Environment: rc"
+          echo "Artifact: ${{ needs.build.outputs.artifact-name }}"
+          echo "SHA: ${{ github.sha }}"
+          # Add your deployment commands here
+          # Example: aws s3 sync dist/ s3://rc-bucket/
+          sleep 5
+          echo "✅ RC deployment completed!"
+
+      - name: Run integration tests
+        run: |
+          echo "🧪 Running integration tests on RC environment..."
+          # Add your integration test commands here
+          sleep 5
+          echo "✅ Integration tests passed!"
+
+  deploy-stage:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build, deploy-dev, deploy-rc]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'stage'
+    environment:
+      name: stage
+      url: https://stage.example.com
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: dist/
+
+      - name: Deploy to Staging
+        run: |
+          echo "🚀 Deploying to Staging environment..."
+          echo "Environment: stage"
+          echo "Artifact: ${{ needs.build.outputs.artifact-name }}"
+          echo "SHA: ${{ github.sha }}"
+          # Add your deployment commands here
+          # Example: aws s3 sync dist/ s3://stage-bucket/
+          sleep 5
+          echo "✅ Staging deployment completed!"
+
+      - name: Run end-to-end tests
+        run: |
+          echo "🧪 Running end-to-end tests on staging environment..."
+          # Add your E2E test commands here
+          sleep 7
+          echo "✅ End-to-end tests passed!"
+
+      - name: Notify stakeholders
+        run: |
+          echo "📧 Notifying stakeholders about staging deployment..."
+          echo "Staging environment is ready for review at https://stage.example.com"
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, deploy-stage]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
+    environment:
+      name: prod
+      url: https://example.com
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: dist/
+
+      - name: Deploy to Production
+        run: |
+          echo "🚀 Deploying to Production environment..."
+          echo "Environment: prod"
+          echo "Artifact: ${{ needs.build.outputs.artifact-name }}"
+          echo "SHA: ${{ github.sha }}"
+          # Add your deployment commands here
+          # Example: aws s3 sync dist/ s3://prod-bucket/
+          sleep 8
+          echo "✅ Production deployment completed!"
+
+      - name: Verify production deployment
+        run: |
+          echo "🔍 Verifying production deployment..."
+          # Add your verification commands here
+          sleep 3
+          echo "✅ Production verification completed!"
+
+      - name: Send success notification
+        run: |
+          echo "🎉 Production deployment successful!"
+          echo "Application is live at https://example.com"
+          echo "Version: ${{ github.sha }}"
